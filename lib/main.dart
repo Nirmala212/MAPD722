@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:project/add_patientscreen.dart';
-import 'package:project/patient_listscreen.dart';
+import 'package:project/homescreen.dart';
+import 'package:project/mongodb.dart';
 
-// void main() {
-//   runApp(MainApp());
-// }
-
-void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: MainApp(), // Set Screen to display
+void main() async {
+  // WidgetsFlutterBinding.ensureInitialized();
+  // await MongoDatabase.connect();
+  runApp(MaterialApp(
+    home: MainApp(),
   ));
 }
 
@@ -73,8 +70,7 @@ class MainApp extends StatelessWidget {
                   //  Navigate to the home screen when the user click login button
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const PatientListscreen()),
+                    MaterialPageRoute(builder: (context) => HomeScreen()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -84,28 +80,28 @@ class MainApp extends StatelessWidget {
                 ),
                 child: const Text('Login'),
               ),
-              // const SizedBox(height: 20),
-              // GestureDetector(
-              //   onTap: () {
-              //     // TODO: Navigate to the Register screen
-              //   },
-              //   child: RichText(
-              //     text: const TextSpan(
-              //       text: "Don't have an account? ",
-              //       style: TextStyle(fontSize: 16, color: Colors.black),
-              //       children: [
-              //         TextSpan(
-              //           text: "Register",
-              //           style: TextStyle(
-              //             fontSize: 16,
-              //             color: Colors.blue,
-              //             decoration: TextDecoration.underline,
-              //           ),
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () {
+                  // TODO: Navigate to the Register screen
+                },
+                child: RichText(
+                  text: const TextSpan(
+                    text: "Don't have an account? ",
+                    style: TextStyle(fontSize: 16, color: Colors.black),
+                    children: [
+                      TextSpan(
+                        text: "Register",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
