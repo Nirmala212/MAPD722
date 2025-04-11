@@ -21,8 +21,8 @@ class AddPatientscreenState extends State<AddPatientscreen> {
   final TextEditingController heartRateController = TextEditingController();
   final TextEditingController respiratoryRateController =
       TextEditingController();
-  final TextEditingController contactInfoController = TextEditingController();
-  final TextEditingController roomNumberController = TextEditingController();
+  final TextEditingController ContactInfoController = TextEditingController();
+  final TextEditingController RoomNumberController = TextEditingController();
 
   // MongoDB connection setup (updated with mongodb+srv://)
   final String connectionString =
@@ -56,8 +56,8 @@ class AddPatientscreenState extends State<AddPatientscreen> {
       'heartRate': heartRateController.text,
       'respiratoryRate': respiratoryRateController.text,
       'contactInfo':
-          contactInfoController.text, // Fixed case to match the field
-      'roomNumber': roomNumberController.text, // Fixed case to match the field
+          ContactInfoController.text, // Fixed case to match the field
+      'roomNumber': RoomNumberController.text, // Fixed case to match the field
       'status':
           'Stable', // Default status, can be customized based on conditions
     };
@@ -116,9 +116,9 @@ class AddPatientscreenState extends State<AddPatientscreen> {
               _buildTextField("Address", Icons.home,
                   controller: addressController),
               _buildTextField("Contact Info", Icons.contact_phone,
-                  controller: contactInfoController),
+                  controller: ContactInfoController),
               _buildTextField("Room Number", Icons.location_on,
-                  controller: roomNumberController),
+                  controller: RoomNumberController),
               _buildTextField("Medical History", Icons.history,
                   controller: medicalHistoryController),
               _buildTextField("Temperature", Icons.heat_pump,

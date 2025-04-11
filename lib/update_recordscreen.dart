@@ -5,10 +5,10 @@ class UpdatePatientRecordScreen extends StatefulWidget {
   final Map<String, dynamic>
       patient; // Change to dynamic for better flexibility
 
-  const UpdatePatientRecordScreen({Key? key, required this.patient})
-      : super(key: key);
+  const UpdatePatientRecordScreen({super.key, required this.patient});
 
   @override
+  // ignore: library_private_types_in_public_api
   _UpdatePatientRecordScreenState createState() =>
       _UpdatePatientRecordScreenState();
 }
@@ -18,8 +18,8 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
   late TextEditingController ageController;
   late TextEditingController addressController;
   late TextEditingController medicalHistoryController;
-  late TextEditingController contactInfoController;
-  late TextEditingController roomNumberController;
+  late TextEditingController ContactInfoController;
+  late TextEditingController RoomNumberController;
 
   // MongoDB connection string (TLS enabled)
   final String connectionString =
@@ -40,9 +40,9 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
     addressController = TextEditingController(text: widget.patient["address"]);
     medicalHistoryController =
         TextEditingController(text: widget.patient["medicalHistory"]);
-    contactInfoController =
+    ContactInfoController =
         TextEditingController(text: widget.patient["contactInfo"]);
-    roomNumberController =
+    RoomNumberController =
         TextEditingController(text: widget.patient["roomNumber"]);
   }
 
@@ -82,8 +82,8 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
           ..set('age', age)
           ..set('address', addressController.text)
           ..set('medicalHistory', medicalHistoryController.text)
-          ..set('contactInfo', contactInfoController.text)
-          ..set('roomNumber', roomNumberController.text),
+          ..set('contactInfo', ContactInfoController.text)
+          ..set('roomNumber', RoomNumberController.text),
       );
 
       if (result.isSuccess) {
@@ -129,9 +129,9 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
             _buildTextField("Medical History", Icons.history,
                 controller: medicalHistoryController),
             _buildTextField("Contact Info", Icons.contact_phone,
-                controller: contactInfoController),
+                controller: ContactInfoController),
             _buildTextField("Room Number", Icons.location_on,
-                controller: roomNumberController),
+                controller: RoomNumberController),
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.bottomCenter,
