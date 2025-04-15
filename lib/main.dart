@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project/homescreen.dart';
+import 'package:project/registerscreen.dart';
 
 void main() async {
   runApp(MaterialApp(
@@ -80,7 +81,11 @@ class MainApp extends StatelessWidget {
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
-                  // TODO: Navigate to the Register screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const RegisterScreen()),
+                  );
                 },
                 child: RichText(
                   text: const TextSpan(

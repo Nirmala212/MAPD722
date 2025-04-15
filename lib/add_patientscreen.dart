@@ -16,13 +16,8 @@ class AddPatientscreenState extends State<AddPatientscreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController medicalHistoryController =
       TextEditingController();
-  final TextEditingController temperatureController = TextEditingController();
-  final TextEditingController bloodPressureController = TextEditingController();
-  final TextEditingController heartRateController = TextEditingController();
-  final TextEditingController respiratoryRateController =
-      TextEditingController();
-  final TextEditingController ContactInfoController = TextEditingController();
-  final TextEditingController RoomNumberController = TextEditingController();
+  final TextEditingController contactInfoController = TextEditingController();
+  final TextEditingController roomNumberController = TextEditingController();
 
   // MongoDB connection setup (updated with mongodb+srv://)
   final String connectionString =
@@ -51,15 +46,9 @@ class AddPatientscreenState extends State<AddPatientscreen> {
       'age': int.parse(ageController.text),
       'address': addressController.text,
       'medicalHistory': medicalHistoryController.text,
-      'temperature': double.parse(temperatureController.text),
-      'bloodPressure': bloodPressureController.text,
-      'heartRate': heartRateController.text,
-      'respiratoryRate': respiratoryRateController.text,
       'contactInfo':
-          ContactInfoController.text, // Fixed case to match the field
-      'roomNumber': RoomNumberController.text, // Fixed case to match the field
-      'status':
-          'Stable', // Default status, can be customized based on conditions
+          contactInfoController.text, // Fixed case to match the field
+      'roomNumber': roomNumberController.text, // Fixed case to match the field
     };
 
     // Insert data into MongoDB collection
@@ -116,19 +105,11 @@ class AddPatientscreenState extends State<AddPatientscreen> {
               _buildTextField("Address", Icons.home,
                   controller: addressController),
               _buildTextField("Contact Info", Icons.contact_phone,
-                  controller: ContactInfoController),
+                  controller: contactInfoController),
               _buildTextField("Room Number", Icons.location_on,
-                  controller: RoomNumberController),
+                  controller: roomNumberController),
               _buildTextField("Medical History", Icons.history,
                   controller: medicalHistoryController),
-              _buildTextField("Temperature", Icons.heat_pump,
-                  controller: temperatureController, isNumber: true),
-              _buildTextField("Blood Pressure", Icons.monitor_heart,
-                  controller: bloodPressureController),
-              _buildTextField("Heart Rate", Icons.favorite,
-                  controller: heartRateController),
-              _buildTextField("Respiratory Rate", Icons.air,
-                  controller: respiratoryRateController),
               const SizedBox(height: 20),
               Center(
                 child: ElevatedButton(

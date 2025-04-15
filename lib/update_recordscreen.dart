@@ -18,20 +18,24 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
   late TextEditingController ageController;
   late TextEditingController addressController;
   late TextEditingController medicalHistoryController;
-  late TextEditingController ContactInfoController;
-  late TextEditingController RoomNumberController;
+  late TextEditingController contactInfoController;
+  late TextEditingController roomNumberController;
 
   // MongoDB connection string (TLS enabled)
   final String connectionString =
-      'mongodb+srv://admin:1234@flutterproject.pl66lr6.mongodb.net/test?retryWrites=true&w=majority&appName=flutterProject';
+      'mongodb://admin:1234@ac-uru0tue-shard-00-00.pl66lr6.mongodb.net:27017,ac-uru0tue-shard-00-01.pl66lr6.mongodb.net:27017,ac-uru0tue-shard-00-02.pl66lr6.mongodb.net:27017/?replicaSet=atlas-4lamuj-shard-0&ssl=true&authSource=admin&retryWrites=true&w=majority&appName=flutterProject';
 
-  late mongo.Db db;
-  late mongo.DbCollection collection;
+  mongo.Db? db;
+  mongo.DbCollection? collection;
 
   @override
   void initState() {
     super.initState();
     _connectToMongoDB();
+
+    print("📦 Full patient data: ${widget.patient}");
+    print("📞 Contact Info: ${widget.patient['contactInfo']}");
+    print("🛏️ Room Number: ${widget.patient['roomNumber']}");
 
     // Initialize controllers with data
     nameController = TextEditingController(text: widget.patient["fullName"]);
@@ -40,32 +44,63 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
     addressController = TextEditingController(text: widget.patient["address"]);
     medicalHistoryController =
         TextEditingController(text: widget.patient["medicalHistory"]);
-    ContactInfoController =
+    contactInfoController =
         TextEditingController(text: widget.patient["contactInfo"]);
-    RoomNumberController =
+    roomNumberController =
         TextEditingController(text: widget.patient["roomNumber"]);
   }
 
   Future<void> _connectToMongoDB() async {
     try {
       db = mongo.Db(connectionString);
-      await db.open();
-      collection = db.collection('patients');
+      await db!.open();
+      collection = db!.collection('patients');
       print("✅ MongoDB connected");
-    } catch (e) {
+    } catch (e, stackTrace) {
       print("❌ MongoDB connection error: $e");
+      print("StackTrace: $stackTrace");
     }
   }
 
   Future<void> saveUpdatedPatient() async {
-    if (widget.patient['_id'] == null || widget.patient['_id']!.isEmpty) {
+    if (db == null || collection == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid patient ID')),
+        const SnackBar(content: Text('MongoDB connection failed')),
       );
       return;
     }
 
-    // Validating age input to ensure it's a valid number
+    //print(
+    // "widget.patient['_id']: ${widget.patient['_id']} (${widget.patient['_id'].runtimeType})");
+
+    late mongo.ObjectId objectId;
+
+    final rawId = widget.patient['_id'];
+    print("🧪 Raw _id: $rawId (${rawId.runtimeType})");
+
+    try {
+      if (rawId is mongo.ObjectId) {
+        objectId = rawId;
+      } else if (rawId is Map && rawId['\$oid'] != null) {
+        objectId = mongo.ObjectId.parse(rawId['\$oid']);
+      } else if (rawId is String) {
+        String formattedId = rawId;
+        if (formattedId.startsWith("ObjectId(")) {
+          formattedId =
+              formattedId.replaceAll('ObjectId("', '').replaceAll('")', '');
+        }
+        objectId = mongo.ObjectId.parse(formattedId);
+      } else {
+        throw Exception("Invalid _id format");
+      }
+    } catch (e) {
+      print("❌ Failed to parse ObjectId: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid patient ID format')),
+      );
+      return;
+    }
+
     int age = int.tryParse(ageController.text) ?? -1;
     if (age <= 0 || age > 150) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,22 +110,28 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
     }
 
     try {
-      var result = await collection.updateOne(
-        {'_id': mongo.ObjectId.parse(widget.patient['_id']!)},
+      print("✅ Updating patient with ID: $objectId");
+
+      var result = await collection!.updateOne(
+        {'_id': objectId},
         mongo.ModifierBuilder()
           ..set('fullName', nameController.text)
           ..set('age', age)
           ..set('address', addressController.text)
           ..set('medicalHistory', medicalHistoryController.text)
-          ..set('contactInfo', ContactInfoController.text)
-          ..set('roomNumber', RoomNumberController.text),
+          ..set('contactInfo', contactInfoController.text)
+          ..set('roomNumber', roomNumberController.text),
       );
 
-      if (result.isSuccess) {
+      print("Matched: ${result.nMatched}, Modified: ${result.nModified}");
+
+      if (result.isSuccess && result.nModified > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Patient record updated successfully!')),
         );
-        Navigator.pop(context);
+
+        print("👋 Returning with 'updated'");
+        Navigator.pop(context, 'updated');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -98,16 +139,16 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
         );
       }
     } catch (e) {
+      print("❌ Update error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to update patient record')),
       );
-      print('Update error: $e');
     }
   }
 
   @override
   void dispose() {
-    db.close();
+    db?.close();
     super.dispose();
   }
 
@@ -129,9 +170,9 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
             _buildTextField("Medical History", Icons.history,
                 controller: medicalHistoryController),
             _buildTextField("Contact Info", Icons.contact_phone,
-                controller: ContactInfoController),
+                controller: contactInfoController),
             _buildTextField("Room Number", Icons.location_on,
-                controller: RoomNumberController),
+                controller: roomNumberController),
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.bottomCenter,
@@ -143,7 +184,7 @@ class _UpdatePatientRecordScreenState extends State<UpdatePatientRecordScreen> {
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                 ),
                 child: const Text(
-                  "Save",
+                  "Update",
                   style: TextStyle(color: Colors.white),
                 ),
               ),

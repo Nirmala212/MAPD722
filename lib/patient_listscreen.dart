@@ -177,8 +177,8 @@ class PatientListscreenState extends State<PatientListscreen> {
                           subtitle: Text(
                             "Age: ${patient["age"] ?? "-"} | Status: ${patient["status"] ?? "-"}",
                           ),
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ViewRecordScreen(
@@ -187,6 +187,11 @@ class PatientListscreenState extends State<PatientListscreen> {
                                 ),
                               ),
                             );
+
+                            if (result == 'deleted') {
+                              await fetchPatients(); // Refresh the list after deletion
+                              setState(() {}); // Trigger UI rebuild
+                            }
                           },
                         ),
                       );
