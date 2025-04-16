@@ -79,7 +79,12 @@ class AddPatientscreenState extends State<AddPatientscreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Patient Details"),
+        title: const Text(
+          "Add Patient",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.blueAccent,
+        centerTitle: true,
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
@@ -95,7 +100,11 @@ class AddPatientscreenState extends State<AddPatientscreen> {
             children: [
               const Text(
                 "Enter Patient Details",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 20),
               _buildTextField("Full Name", Icons.person,
@@ -118,9 +127,16 @@ class AddPatientscreenState extends State<AddPatientscreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 40, vertical: 15),
+                    backgroundColor: Colors.blueAccent, // Button color
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                     textStyle: const TextStyle(fontSize: 18),
                   ),
-                  child: const Text("Add Patient"),
+                  child: const Text(
+                    "Add Patient",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],
@@ -131,7 +147,7 @@ class AddPatientscreenState extends State<AddPatientscreen> {
   }
 }
 
-// Reusable Textfield widget
+// Reusable Textfield widget with improved styling
 Widget _buildTextField(String label, IconData icon,
     {bool isNumber = false, required TextEditingController controller}) {
   return Padding(
@@ -141,8 +157,18 @@ Widget _buildTextField(String label, IconData icon,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(icon),
+        labelStyle:
+            TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        prefixIcon: Icon(icon, color: Colors.blueAccent),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       ),
     ),
   );

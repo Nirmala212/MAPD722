@@ -19,25 +19,29 @@ class PatientListscreenState extends State<PatientListscreen> {
       'mongodb+srv://admin:1234@flutterproject.pl66lr6.mongodb.net/test?retryWrites=true&w=majority&appName=flutterProject';
 
   late mongo.Db db;
-  late mongo.DbCollection collection;
+  late mongo.DbCollection patientCollection;
+  late mongo.DbCollection testCollection;
+
+  // Define normal test ranges
+  final Map<String, List<double>> testRanges = {
+    "Temperature": [36.5, 37.5],
+    "Blood Pressure": [80, 120], // If systolic only
+    "Blood Sugar": [70, 140],
+    "Heart Rate": [60, 100],
+  };
 
   @override
   void initState() {
     super.initState();
-    print("Initializing PatientListscreen...");
     _connectToMongoDB();
   }
 
   Future<void> _connectToMongoDB() async {
-    print("Attempting MongoDB connection...");
     try {
       db = await mongo.Db.create(connectionString);
       await db.open();
-      print("✅ MongoDB connected successfully.");
-
-      collection = db.collection('patients');
-      print("✅ Collection selected: ${collection.collectionName}");
-
+      patientCollection = db.collection('patients');
+      testCollection = db.collection('medicalTest');
       await fetchPatients();
     } catch (e) {
       print('❌ MongoDB connection error: $e');
@@ -46,27 +50,46 @@ class PatientListscreenState extends State<PatientListscreen> {
 
   Future<void> fetchPatients() async {
     try {
-      final data = await collection.find().toList();
-      print("Fetched ${data.length} patients from database.");
-      print("Raw data: $data");
+      final data = await patientCollection.find().toList();
+      List<Map<String, dynamic>> updatedPatients = [];
 
-      setState(() {
-        patients = data.map((patient) {
-          // Safety check: assign defaults if missing fields
-          final age = patient["age"] ?? 0;
-          final temp = patient["temperature"] ?? 98.6;
+      for (var patient in data) {
+        final tests = await testCollection
+            .find(mongo.where
+                .eq('patientId', patient['_id'].toString())
+                .sortBy('testDate', descending: true))
+            .toList();
 
-          patient["status"] = (age > 60 || temp < 98.0) ? "Critical" : "Stable";
+        String status = "Stable";
 
-          return patient;
-        }).toList();
-      });
+        if (tests.isNotEmpty) {
+          final latestTest = tests.first;
+          final testName = latestTest['testName'];
+          final testValue = double.tryParse(latestTest['testValue'].toString());
+
+          if (testName != null &&
+              testValue != null &&
+              testRanges.containsKey(testName)) {
+            final range = testRanges[testName]!;
+
+            if (testValue < range[0] || testValue > range[1]) {
+              status = "Critical";
+            }
+          }
+        }
+
+        patient["status"] = status;
+        updatedPatients.add(patient);
+      }
+
+      if (mounted) {
+        setState(() {
+          patients = updatedPatients;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error fetching patients: $e');
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
     }
   }
 
@@ -104,29 +127,37 @@ class PatientListscreenState extends State<PatientListscreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("List of Patients")),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title:
+            const Text("Patient List", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextField(
                         controller: searchController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Search Patient",
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
                         ),
                         onChanged: (value) => setState(() {}),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           FilterButton(
                             label: "ALL",
@@ -151,64 +182,83 @@ class PatientListscreenState extends State<PatientListscreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: filteredPatients.length,
-                    itemBuilder: (context, index) {
-                      final patient = filteredPatients[index];
-                      return Card(
-                        color: patient["status"] == "Critical"
-                            ? Colors.red.shade100
-                            : Colors.green.shade100,
-                        child: ListTile(
-                          title: Text(
-                            patient["fullName"] ?? "Unknown",
-                            style: TextStyle(
-                              color: patient["status"] == "Critical"
-                                  ? Colors.red
-                                  : Colors.green,
-                              fontWeight: FontWeight.bold,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ListView.builder(
+                      itemCount: filteredPatients.length,
+                      itemBuilder: (context, index) {
+                        final patient = filteredPatients[index];
+                        final isCritical = patient["status"] == "Critical";
+                        return Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          color: isCritical
+                              ? Colors.red.shade50
+                              : Colors.green.shade50,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.person,
+                              color: isCritical ? Colors.red : Colors.green,
+                              size: 30,
                             ),
-                          ),
-                          subtitle: Text(
-                            "Age: ${patient["age"] ?? "-"} | Status: ${patient["status"] ?? "-"}",
-                          ),
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ViewRecordScreen(
-                                  patient: patient.map((key, value) =>
-                                      MapEntry(key, value.toString())),
-                                ),
+                            title: Text(
+                              patient["fullName"] ?? "Unknown",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    isCritical ? Colors.red : Colors.green[800],
                               ),
-                            );
+                            ),
+                            subtitle: Text(
+                              "Age: ${patient["age"] ?? "-"} | Status: ${patient["status"] ?? "-"}",
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios),
+                            onTap: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ViewRecordScreen(
+                                    patient: patient.map((key, value) =>
+                                        MapEntry(key, value.toString())),
+                                  ),
+                                ),
+                              );
 
-                            if (result == 'deleted') {
-                              await fetchPatients(); // Refresh the list after deletion
-                              setState(() {}); // Trigger UI rebuild
-                            }
-                          },
-                        ),
-                      );
-                    },
+                              if (result == 'deleted') {
+                                await fetchPatients();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: refreshPatients,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 40, vertical: 15),
-                        textStyle: const TextStyle(fontSize: 18),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: ElevatedButton.icon(
+                    onPressed: refreshPatients,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Refresh"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 27, 108, 229),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 14),
+                      textStyle: const TextStyle(fontSize: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text("Refresh"),
                     ),
                   ),
                 ),
@@ -233,11 +283,18 @@ class FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
+    final isSelected = label == selectedFilter;
+
+    return OutlinedButton(
       onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: isSelected ? color : Colors.transparent,
+        foregroundColor: isSelected ? Colors.white : color,
+        side: BorderSide(color: color, width: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
       child: Text(label),
     );

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart' as mongo show Db, ObjectId;
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
-class AddTestScreen extends StatefulWidget {
-  final Map<String, String> patient;
+class EditTestScreen extends StatefulWidget {
+  final Map<String, dynamic> test;
 
-  const AddTestScreen({Key? key, required this.patient}) : super(key: key);
+  const EditTestScreen({Key? key, required this.test}) : super(key: key);
 
   @override
-  State<AddTestScreen> createState() => _AddTestScreenState();
+  State<EditTestScreen> createState() => _EditTestScreenState();
 }
 
-class _AddTestScreenState extends State<AddTestScreen> {
-  final TextEditingController resultController = TextEditingController();
-  final TextEditingController valueController = TextEditingController();
+class _EditTestScreenState extends State<EditTestScreen> {
+  late TextEditingController resultController;
+  late TextEditingController valueController;
   late TextEditingController dateController;
 
   final List<String> testOptions = [
@@ -26,19 +26,27 @@ class _AddTestScreenState extends State<AddTestScreen> {
   DateTime? selectedDate;
 
   final String connectionString =
-      'mongodb://admin:1234@ac-uru0tue-shard-00-00.pl66lr6.mongodb.net:27017,ac-uru0tue-shard-00-01.pl66lr6.mongodb.net:27017,ac-uru0tue-shard-00-02.pl66lr6.mongodb.net:27017/?replicaSet=atlas-4lamuj-shard-0&ssl=true&authSource=admin&retryWrites=true&w=majority&appName=flutterProject';
+      'mongodb+srv://admin:1234@flutterproject.pl66lr6.mongodb.net/test?retryWrites=true&w=majority&appName=flutterProject';
 
   @override
   void initState() {
     super.initState();
-    dateController = TextEditingController();
-  }
 
-  mongo.ObjectId _extractObjectId(String rawId) {
-    if (rawId.startsWith('ObjectId("') && rawId.endsWith('")')) {
-      return mongo.ObjectId.parse(rawId.substring(10, rawId.length - 2));
-    }
-    return mongo.ObjectId.parse(rawId);
+    resultController = TextEditingController(text: widget.test['result']);
+    valueController =
+        TextEditingController(text: widget.test['testValue'].toString());
+
+    dateController = TextEditingController(
+      text: widget.test['testDate'] is DateTime
+          ? (widget.test['testDate'] as DateTime)
+              .toIso8601String()
+              .split('T')
+              .first
+          : widget.test['testDate'].toString(),
+    );
+
+    selectedTest = widget.test['testName'];
+    selectedDate = DateTime.tryParse(widget.test['testDate'].toString());
   }
 
   void _pickTestDate() async {
@@ -58,58 +66,49 @@ class _AddTestScreenState extends State<AddTestScreen> {
     }
   }
 
-  void saveTest() async {
-    if (selectedTest == null ||
-        selectedDate == null ||
-        valueController.text.isEmpty ||
-        resultController.text.isEmpty) {
-      if (!mounted) return;
+  void updateTest() async {
+    if (resultController.text.isEmpty || valueController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all the fields.')),
       );
       return;
     }
 
-    final formattedDate =
-        "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+    final formattedDate = selectedDate != null
+        ? "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
+        : widget.test['testDate'].toString();
+
+    final testData = {
+      "testName": selectedTest ?? widget.test['testName'],
+      "testDate": formattedDate,
+      "result": resultController.text,
+      "testValue": valueController.text,
+    };
 
     try {
-      final testValue = double.tryParse(valueController.text);
-      if (testValue == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid test value')),
-        );
-        return;
-      }
-
-      final testData = {
-        "patientId": _extractObjectId(widget.patient['_id']!),
-        "testName": selectedTest,
-        "testDate": selectedDate,
-        "testValue": testValue,
-        "result": resultController.text,
-      };
-
       final db = await mongo.Db.create(connectionString);
       await db.open();
 
       final medicalTestCollection = db.collection('medicalTest');
-      await medicalTestCollection.insert(testData);
+      await medicalTestCollection.updateOne(
+        mongo.where.id(widget.test['_id']),
+        mongo.ModifierBuilder()
+          ..set('testName', testData['testName'])
+          ..set('testDate', testData['testDate'])
+          ..set('result', testData['result'])
+          ..set('testValue', testData['testValue']),
+      );
 
       await db.close();
 
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Test saved to medicalTest collection!')),
+        const SnackBar(content: Text('Test updated successfully!')),
       );
 
-      Navigator.pop(context, 'test_added');
-    } catch (e, stacktrace) {
-      print("❌ Error saving test: $e\n$stacktrace");
-      if (!mounted) return;
+      Navigator.pop(context, 'updated');
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving test: $e')),
+        SnackBar(content: Text('Error updating test: $e')),
       );
     }
   }
@@ -118,22 +117,21 @@ class _AddTestScreenState extends State<AddTestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text("Add New Test", style: TextStyle(color: Colors.white)),
+        title: const Text("Edit Test Information",
+            style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
                 labelText: "Select Test Name",
-                labelStyle: TextStyle(fontSize: 16),
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 20),
               ),
               value: selectedTest,
               items: testOptions.map((test) {
@@ -154,12 +152,11 @@ class _AddTestScreenState extends State<AddTestScreen> {
               child: AbsorbPointer(
                 child: TextFormField(
                   controller: dateController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "Test Date",
-                    labelStyle: const TextStyle(fontSize: 16),
-                    suffixIcon: const Icon(Icons.calendar_today),
+                    suffixIcon: Icon(Icons.calendar_today),
                     border: OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 20),
                   ),
                 ),
               ),
@@ -170,37 +167,34 @@ class _AddTestScreenState extends State<AddTestScreen> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: "Test Value",
-                labelStyle: TextStyle(fontSize: 16),
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 20),
               ),
             ),
             const SizedBox(height: 20),
             TextField(
               controller: resultController,
               decoration: const InputDecoration(
-                labelText: "Result",
-                labelStyle: TextStyle(fontSize: 16),
+                labelText: "Test Result",
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 20),
               ),
             ),
             const SizedBox(height: 30),
             Center(
               child: ElevatedButton(
-                onPressed: saveTest,
+                onPressed: updateTest,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  elevation: 5,
                 ),
                 child: const Text(
-                  "Save Test",
-                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  "Save Changes",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ),
