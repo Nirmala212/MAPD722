@@ -22,6 +22,14 @@ class _AddTestScreenState extends State<AddTestScreen> {
     'Heart Rate',
   ];
 
+  // Define acceptable value ranges for each test
+  final Map<String, Map<String, double>> testRanges = {
+    'Temperature': {'min': 95.0, 'max': 104.0}, // Fahrenheit
+    'Blood Pressure': {'min': 80.0, 'max': 180.0}, // Systolic
+    'Blood Sugar': {'min': 70.0, 'max': 200.0}, // mg/dL
+    'Heart Rate': {'min': 40.0, 'max': 180.0}, // bpm
+  };
+
   String? selectedTest;
   DateTime? selectedDate;
 
@@ -79,6 +87,21 @@ class _AddTestScreenState extends State<AddTestScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invalid test value')),
+        );
+        return;
+      }
+
+      // Check if test value is within range
+      final range = testRanges[selectedTest];
+      if (range != null &&
+          (testValue < range['min']! || testValue > range['max']!)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$selectedTest value must be between ${range['min']} and ${range['max']}',
+            ),
+          ),
         );
         return;
       }

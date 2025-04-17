@@ -62,8 +62,53 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
       setState(() {
         testList = tests.cast<Map<String, dynamic>>();
       });
+
+      await _updatePatientStatus();
     } catch (e) {
       print("❌ Error fetching test data: $e");
+    }
+  }
+
+  Future<void> _updatePatientStatus() async {
+    if (testList.isEmpty) return;
+
+    final latestTest = testList.first;
+    String status = "Stable";
+
+    try {
+      final testName = latestTest["testName"].toString().toLowerCase();
+      final result = double.tryParse(latestTest["result"].toString()) ?? 0;
+
+      if (testName.contains("blood pressure") &&
+          (result < 90 || result > 140)) {
+        status = "Critical";
+      } else if (testName.contains("respiratory") &&
+          (result < 12 || result > 20)) {
+        status = "Critical";
+      } else if (testName.contains("oxygen") && result < 95) {
+        status = "Critical";
+      } else if (testName.contains("heart") && (result < 60 || result > 100)) {
+        status = "Critical";
+      }
+
+      final db = await mongo.Db.create(connectionString);
+      await db.open();
+      final patientCollection = db.collection('patients');
+
+      final id = extractObjectId(patient["_id"]);
+
+      await patientCollection.updateOne(
+        mongo.where.eq("_id", id),
+        mongo.modify.set("status", status),
+      );
+
+      await db.close();
+
+      setState(() {
+        patient["status"] = status;
+      });
+    } catch (e) {
+      print("❌ Error updating status: $e");
     }
   }
 
@@ -115,6 +160,7 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
 
     if (result == 'test_added') {
       await _fetchTestData();
+      await _updatePatientStatus();
     }
   }
 
@@ -137,7 +183,6 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => UpdatePatientRecordScreen(
-          // patient: patient.map((key, value) => MapEntry(key, value.toString())),
           patient: Map<String, dynamic>.from(patient),
         ),
       ),
@@ -245,9 +290,7 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Patient Information Section
               _buildPatientInfoSection(),
-
               const SizedBox(height: 30),
               const Divider(),
               const Text(
@@ -255,8 +298,6 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
-
-              // Test History Section
               testList.isEmpty
                   ? const Text("No test records found.")
                   : ListView.builder(
@@ -268,9 +309,7 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
                         return _buildTestHistoryCard(context, test);
                       },
                     ),
-
               const SizedBox(height: 20),
-              // Add Test Button
               Align(
                 alignment: Alignment.bottomCenter,
                 child: ElevatedButton(
@@ -295,7 +334,6 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
     );
   }
 
-  // Helper to build patient info section
   Widget _buildPatientInfoSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,11 +345,11 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
         _buildPatientInfoItem(
             "Contact Info", patient["contactInfo"].toString()),
         _buildPatientInfoItem("Room Number", patient["roomNumber"].toString()),
+        _buildPatientInfoItem("Status", patient["status"]),
       ],
     );
   }
 
-  // Helper to build each item in the patient info
   Widget _buildPatientInfoItem(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -322,7 +360,6 @@ class _ViewRecordScreenState extends State<ViewRecordScreen> {
     );
   }
 
-  // Helper to build the test history card
   Widget _buildTestHistoryCard(
       BuildContext context, Map<String, dynamic> test) {
     return Card(

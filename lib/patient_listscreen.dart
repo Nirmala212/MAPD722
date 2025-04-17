@@ -20,15 +20,6 @@ class PatientListscreenState extends State<PatientListscreen> {
 
   late mongo.Db db;
   late mongo.DbCollection patientCollection;
-  late mongo.DbCollection testCollection;
-
-  // Define normal test ranges
-  final Map<String, List<double>> testRanges = {
-    "Temperature": [36.5, 37.5],
-    "Blood Pressure": [80, 120], // If systolic only
-    "Blood Sugar": [70, 140],
-    "Heart Rate": [60, 100],
-  };
 
   @override
   void initState() {
@@ -41,7 +32,6 @@ class PatientListscreenState extends State<PatientListscreen> {
       db = await mongo.Db.create(connectionString);
       await db.open();
       patientCollection = db.collection('patients');
-      testCollection = db.collection('medicalTest');
       await fetchPatients();
     } catch (e) {
       print('❌ MongoDB connection error: $e');
@@ -51,40 +41,10 @@ class PatientListscreenState extends State<PatientListscreen> {
   Future<void> fetchPatients() async {
     try {
       final data = await patientCollection.find().toList();
-      List<Map<String, dynamic>> updatedPatients = [];
-
-      for (var patient in data) {
-        final tests = await testCollection
-            .find(mongo.where
-                .eq('patientId', patient['_id'].toString())
-                .sortBy('testDate', descending: true))
-            .toList();
-
-        String status = "Stable";
-
-        if (tests.isNotEmpty) {
-          final latestTest = tests.first;
-          final testName = latestTest['testName'];
-          final testValue = double.tryParse(latestTest['testValue'].toString());
-
-          if (testName != null &&
-              testValue != null &&
-              testRanges.containsKey(testName)) {
-            final range = testRanges[testName]!;
-
-            if (testValue < range[0] || testValue > range[1]) {
-              status = "Critical";
-            }
-          }
-        }
-
-        patient["status"] = status;
-        updatedPatients.add(patient);
-      }
 
       if (mounted) {
         setState(() {
-          patients = updatedPatients;
+          patients = data;
           isLoading = false;
         });
       }
@@ -95,15 +55,14 @@ class PatientListscreenState extends State<PatientListscreen> {
 
   List<Map<String, dynamic>> get filteredPatients {
     return patients.where((patient) {
+      final name = (patient["fullName"] ?? "").toString().toLowerCase();
+      final status = (patient["status"] ?? "").toString().toLowerCase();
+
       final matchesSearch = searchController.text.isEmpty ||
-          (patient["fullName"] ?? "")
-              .toString()
-              .toLowerCase()
-              .contains(searchController.text.toLowerCase());
+          name.contains(searchController.text.toLowerCase());
 
       final matchesFilter = selectedFilter == Filter.ALL ||
-          (patient["status"] ?? "").toString().toLowerCase() ==
-              selectedFilter.toLowerCase();
+          status == selectedFilter.toLowerCase();
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -224,7 +183,7 @@ class PatientListscreenState extends State<PatientListscreen> {
                             ),
                             trailing: const Icon(Icons.arrow_forward_ios),
                             onTap: () async {
-                              final result = await Navigator.push(
+                              final changed = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => ViewRecordScreen(
@@ -234,8 +193,8 @@ class PatientListscreenState extends State<PatientListscreen> {
                                 ),
                               );
 
-                              if (result == 'deleted') {
-                                await fetchPatients();
+                              if (changed == true) {
+                                refreshPatients(); // Refresh after update
                               }
                             },
                           ),
